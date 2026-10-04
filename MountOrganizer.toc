@@ -1,0 +1,17 @@
+## Interface: 120100
+## Title: Mount Organizer
+## Notes: A utility to organize mounts into collections for random mounting.
+## Author: Ulkesh
+## Version: 1.0.0
+## RequiredDeps:
+## X-Curse-Project-ID: 999999
+## SavedVariables: MountOrganizerDB
+## IconTexture: Interface\AddOns\MountOrganizer\media\MountOrganizer_32x32.tga
+
+MountOrganizer_Constants.lua
+MountOrganizer_Storage.lua
+MountOrganizer_Mounts.lua
+MountOrganizer_Macros.lua
+MountOrganizer_Layout.lua
+MountOrganizer_UI.lua
+MountOrganizer_Main.lua
