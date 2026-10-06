@@ -6,7 +6,7 @@ ns.Macros = Macros
 local tooltipHookInstalled
 
 function Macros:GetBody(category)
-    return "/click " .. ns.Mounts:EnsureCategoryActionButton(category)
+    return "/cancelform\n/click " .. ns.Mounts:EnsureCategoryActionButton(category)
 end
 
 function Macros:GetCategoryMacroIndex(category, body)
