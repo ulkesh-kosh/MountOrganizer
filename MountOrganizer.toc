@@ -1,10 +1,12 @@
-## Interface: 120100
+## Interface: 120105
 ## Title: Mount Organizer
 ## Notes: A utility to organize mounts into collections for random mounting.
 ## Author: Ulkesh
-## Version: 1.0.0
+## Version: 1.0.2
 ## RequiredDeps:
-## X-Curse-Project-ID: 999999
+## X-Curse-Project-ID: 1726888
+## X-Category: Mounts
+## Category-enUS: Mounts
 ## SavedVariables: MountOrganizerDB
 ## IconTexture: Interface\AddOns\MountOrganizer\media\MountOrganizer_32x32.tga
 
