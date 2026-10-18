@@ -16,6 +16,13 @@ eventFrame:RegisterEvent("NEW_MOUNT_ADDED")
 eventFrame:RegisterEvent("COMPANION_UPDATE")
 eventFrame:RegisterEvent("MOUNT_JOURNAL_USABILITY_CHANGED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("ZONE_CHANGED")
+eventFrame:RegisterEvent("ZONE_CHANGED_INDOORS")
+eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+eventFrame:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
+eventFrame:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+eventFrame:RegisterEvent("ACTIONBAR_PAGE_CHANGED")
+eventFrame:RegisterEvent("UPDATE_BONUS_ACTIONBAR")
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
     if event == "ADDON_LOADED" and loadedAddon == addonName then
         ns.Storage:Initialize()
@@ -33,6 +40,7 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
     elseif event == "PLAYER_LOGIN" then
         ns.Mounts:Refresh()
         ns.Macros:EnsureActionButtons()
+        ns.Macros:RefreshActionButtons()
         if C_AddOns.IsAddOnLoaded("Blizzard_Collections") then
             ns.Macros:InstallTooltipHook()
             BuildUIIfReady()
@@ -41,9 +49,14 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
         ns.Macros:SyncAll()
         ns.UI:RefreshSelectedCategory()
         ns.Layout:Schedule(MountJournal)
-    elseif (event == "NEW_MOUNT_ADDED" or event == "COMPANION_UPDATE" or event == "MOUNT_JOURNAL_USABILITY_CHANGED" or event == "PLAYER_ENTERING_WORLD") and ns.UI.panel then
+    elseif event == "ACTIONBAR_UPDATE_USABLE" or event == "ACTIONBAR_SLOT_CHANGED" or event == "ACTIONBAR_PAGE_CHANGED" or event == "UPDATE_BONUS_ACTIONBAR" then
+        ns.Macros:RefreshActionButtons()
+    elseif event == "NEW_MOUNT_ADDED" or event == "COMPANION_UPDATE" or event == "MOUNT_JOURNAL_USABILITY_CHANGED" or event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then
         ns.Mounts:Refresh()
-        ns.Macros:SyncAll()
-        ns.UI:RefreshAll()
+        ns.Macros:RefreshActionButtons()
+        if ns.UI.panel then
+            ns.Macros:SyncAll()
+            ns.UI:RefreshAll()
+        end
     end
 end)

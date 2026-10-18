@@ -4,6 +4,22 @@ local Macros = {}
 ns.Macros = Macros
 
 local tooltipHookInstalled
+local actionButtonHooksInstalled = {}
+local trackedActionButtons = {}
+local actionButtonRefreshFrame
+local SetCategoryTooltip
+
+local actionButtonPrefixes = {
+    "ActionButton",
+    "MainMenuBarActionButton",
+    "MultiBarBottomLeftButton",
+    "MultiBarBottomRightButton",
+    "MultiBarRightButton",
+    "MultiBarLeftButton",
+    "MultiBar5Button",
+    "MultiBar6Button",
+    "MultiBar7Button",
+}
 
 function Macros:GetBody(category)
     return "/cancelform\n/click " .. ns.Mounts:EnsureCategoryActionButton(category)
@@ -72,34 +88,148 @@ function Macros:DeleteCategory(category)
     return true
 end
 
-function Macros:InstallTooltipHook()
-    if tooltipHookInstalled or not GameTooltip or not GameTooltip.SetAction or not GameTooltip.HookScript then
+function Macros:UpdateActionButton(button)
+    if not button.icon then
         return
     end
-    tooltipHookInstalled = true
 
-    local function SetCategoryTooltip(tooltip, actionSlot)
-        if not actionSlot then
+    local function ResetIcon()
+        button.icon:SetAlpha(1)
+        button.mountOrganizerCategoryAction = nil
+        button.mountOrganizerCategoryDimmed = nil
+    end
+
+    local actionSlot = button.action or (button.GetAttribute and button:GetAttribute("action"))
+    if not actionSlot then
+        if button.mountOrganizerCategoryAction then
+            ResetIcon()
+        end
+        return
+    end
+
+    local actionType, macroIndex = GetActionInfo(actionSlot)
+    if actionType ~= "macro" then
+        if button.mountOrganizerCategoryAction then
+            ResetIcon()
+        end
+        return
+    end
+
+    local _, _, body = GetMacroInfo(macroIndex)
+    local categoryID = body and body:match("MountOrganizerCategoryAction_([A-Za-z0-9]+)")
+    local category = categoryID and ns.Storage:FindCategory(categoryID)
+    if not category then
+        if button.mountOrganizerCategoryAction then
+            ResetIcon()
+        end
+        return
+    end
+
+    local usable = ns.Mounts:CanUseCategory(category)
+    button.mountOrganizerCategoryAction = true
+    button.mountOrganizerCategoryDimmed = not usable
+    button.icon:SetAlpha(usable and 1 or 0.4)
+end
+
+function Macros:RefreshActionButtons()
+    local function RefreshButton(button)
+        if not button then
             return
         end
-        local actionType, macroIndex = GetActionInfo(actionSlot)
-        if actionType ~= "macro" then
-            return
+        trackedActionButtons[button] = true
+        if not button.mountOrganizerTooltipHooked and button.HookScript then
+            button.mountOrganizerTooltipHooked = true
+            button:HookScript("OnEnter", function(self)
+                local actionSlot = self.action or (self.GetAttribute and self:GetAttribute("action"))
+                SetCategoryTooltip(GameTooltip, actionSlot)
+            end)
         end
-        local _, _, body = GetMacroInfo(macroIndex)
-        local categoryID = body and body:match("MountOrganizerCategoryAction_([A-Za-z0-9]+)")
-        local category = categoryID and ns.Storage:FindCategory(categoryID)
-        if category then
-            tooltip:ClearLines()
-            tooltip:AddLine("Random Mount", 1, 1, 1)
-            tooltip:AddLine("Randomly spawn a mount from category: " .. category.name, 1, 0.82, 0.25)
-            tooltip:Show()
+        self:UpdateActionButton(button)
+    end
+
+    for _, prefix in ipairs(actionButtonPrefixes) do
+        for buttonIndex = 1, 12 do
+            RefreshButton(_G[prefix .. buttonIndex])
         end
     end
 
-    hooksecurefunc(GameTooltip, "SetAction", SetCategoryTooltip)
-    GameTooltip:HookScript("OnTooltipSetAction", function(tooltip)
-        local owner = tooltip:GetOwner()
-        SetCategoryTooltip(tooltip, owner and owner.action)
-    end)
+    local enumerateFrames = _G["EnumerateFrames"]
+    if type(enumerateFrames) == "function" then
+        local button = enumerateFrames()
+        while button do
+            local actionSlot = button["action"] or (button.GetAttribute and button:GetAttribute("action"))
+            if button["icon"] and actionSlot then
+                RefreshButton(button)
+            end
+            button = enumerateFrames(button)
+        end
+    end
+end
+
+SetCategoryTooltip = function(tooltip, actionSlot)
+    if not actionSlot then
+        return
+    end
+    local owner = tooltip:GetOwner()
+    if owner and owner.icon then
+        trackedActionButtons[owner] = true
+        Macros:UpdateActionButton(owner)
+    end
+
+    local actionType, macroIndex = GetActionInfo(actionSlot)
+    if actionType ~= "macro" then
+        return
+    end
+    local _, _, body = GetMacroInfo(macroIndex)
+    local categoryID = body and body:match("MountOrganizerCategoryAction_([A-Za-z0-9]+)")
+    local category = categoryID and ns.Storage:FindCategory(categoryID)
+    if category then
+        tooltip:ClearLines()
+        tooltip:AddLine("Random Mount", 1, 1, 1)
+        tooltip:AddLine("Randomly spawn a mount from category: " .. category.name, 1, 0.82, 0.25)
+        if not ns.Mounts:CanUseCategory(category) then
+            tooltip:AddLine("Can only use outside", 1, 0, 0)
+        end
+        tooltip:Show()
+    end
+end
+
+function Macros:InstallTooltipHook()
+    if not tooltipHookInstalled and GameTooltip and GameTooltip.SetAction and GameTooltip.HookScript then
+        tooltipHookInstalled = true
+        hooksecurefunc(GameTooltip, "SetAction", SetCategoryTooltip)
+        GameTooltip:HookScript("OnTooltipSetAction", function(tooltip)
+            local owner = tooltip:GetOwner()
+            SetCategoryTooltip(tooltip, owner and owner.action)
+        end)
+    end
+
+    for _, updateFunction in ipairs({ "ActionButton_Update", "ActionButton_UpdateUsable" }) do
+        if not actionButtonHooksInstalled[updateFunction] and type(_G[updateFunction]) == "function" then
+            actionButtonHooksInstalled[updateFunction] = true
+            hooksecurefunc(updateFunction, function(button)
+                self:UpdateActionButton(button)
+            end)
+        end
+    end
+    if not actionButtonRefreshFrame then
+        actionButtonRefreshFrame = CreateFrame("Frame")
+        local buttonRefreshElapsed = 0
+        local discoveryElapsed = 0
+        actionButtonRefreshFrame:SetScript("OnUpdate", function(_, elapsed)
+            buttonRefreshElapsed = buttonRefreshElapsed + elapsed
+            discoveryElapsed = discoveryElapsed + elapsed
+            if buttonRefreshElapsed >= 0.25 then
+                buttonRefreshElapsed = 0
+                for button in pairs(trackedActionButtons) do
+                    self:UpdateActionButton(button)
+                end
+            end
+            if discoveryElapsed >= 2 then
+                discoveryElapsed = 0
+                self:RefreshActionButtons()
+            end
+        end)
+    end
+    self:RefreshActionButtons()
 end

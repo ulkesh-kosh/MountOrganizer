@@ -57,11 +57,24 @@ end
 function Mounts:GetUsableCategoryMounts(category)
     local selectedMounts = {}
     for _, mount in ipairs(mountCache) do
-        if category.mounts[mount.id] and mount.usable then
-            selectedMounts[#selectedMounts + 1] = mount
+        if category.mounts[mount.id] then
+            local usable = C_MountJournal.GetMountUsabilityByID(mount.id, false)
+            if usable == nil then
+                usable = mount.usable
+            end
+            if usable then
+                selectedMounts[#selectedMounts + 1] = mount
+            end
         end
     end
     return selectedMounts
+end
+
+function Mounts:CanUseCategory(category)
+    if type(_G["IsOutdoors"]) == "function" and not _G["IsOutdoors"]() then
+        return false
+    end
+    return #self:GetUsableCategoryMounts(category) > 0
 end
 
 function Mounts:SummonRandom(category)
