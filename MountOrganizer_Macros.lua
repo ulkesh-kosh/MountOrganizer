@@ -6,7 +6,6 @@ ns.Macros = Macros
 local tooltipHookInstalled
 local actionButtonHooksInstalled = {}
 local trackedActionButtons = {}
-local actionButtonRefreshFrame
 local SetCategoryTooltip
 
 local actionButtonPrefixes = {
@@ -131,11 +130,13 @@ function Macros:UpdateActionButton(button)
     button.icon:SetAlpha(usable and 1 or 0.4)
 end
 
-function Macros:RefreshActionButtons()
+function Macros:RefreshActionButtons(discoverFrames)
+    local refreshedButtons = {}
     local function RefreshButton(button)
-        if not button then
+        if not button or refreshedButtons[button] then
             return
         end
+        refreshedButtons[button] = true
         trackedActionButtons[button] = true
         if not button.mountOrganizerTooltipHooked and button.HookScript then
             button.mountOrganizerTooltipHooked = true
@@ -147,21 +148,27 @@ function Macros:RefreshActionButtons()
         self:UpdateActionButton(button)
     end
 
+    for button in pairs(trackedActionButtons) do
+        RefreshButton(button)
+    end
+
     for _, prefix in ipairs(actionButtonPrefixes) do
         for buttonIndex = 1, 12 do
             RefreshButton(_G[prefix .. buttonIndex])
         end
     end
 
-    local enumerateFrames = _G["EnumerateFrames"]
-    if type(enumerateFrames) == "function" then
-        local button = enumerateFrames()
-        while button do
-            local actionSlot = button["action"] or (button.GetAttribute and button:GetAttribute("action"))
-            if button["icon"] and actionSlot then
-                RefreshButton(button)
+    if discoverFrames then
+        local enumerateFrames = _G["EnumerateFrames"]
+        if type(enumerateFrames) == "function" then
+            local button = enumerateFrames()
+            while button do
+                local actionSlot = button["action"] or (button.GetAttribute and button:GetAttribute("action"))
+                if button["icon"] and actionSlot then
+                    RefreshButton(button)
+                end
+                button = enumerateFrames(button)
             end
-            button = enumerateFrames(button)
         end
     end
 end
@@ -212,24 +219,5 @@ function Macros:InstallTooltipHook()
             end)
         end
     end
-    if not actionButtonRefreshFrame then
-        actionButtonRefreshFrame = CreateFrame("Frame")
-        local buttonRefreshElapsed = 0
-        local discoveryElapsed = 0
-        actionButtonRefreshFrame:SetScript("OnUpdate", function(_, elapsed)
-            buttonRefreshElapsed = buttonRefreshElapsed + elapsed
-            discoveryElapsed = discoveryElapsed + elapsed
-            if buttonRefreshElapsed >= 0.25 then
-                buttonRefreshElapsed = 0
-                for button in pairs(trackedActionButtons) do
-                    self:UpdateActionButton(button)
-                end
-            end
-            if discoveryElapsed >= 2 then
-                discoveryElapsed = 0
-                self:RefreshActionButtons()
-            end
-        end)
-    end
-    self:RefreshActionButtons()
+    self:RefreshActionButtons(true)
 end

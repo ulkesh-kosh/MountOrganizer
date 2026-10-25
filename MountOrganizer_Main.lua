@@ -50,7 +50,7 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
         ns.UI:RefreshSelectedCategory()
         ns.Layout:Schedule(MountJournal)
     elseif event == "ACTIONBAR_UPDATE_USABLE" or event == "ACTIONBAR_SLOT_CHANGED" or event == "ACTIONBAR_PAGE_CHANGED" or event == "UPDATE_BONUS_ACTIONBAR" then
-        ns.Macros:RefreshActionButtons()
+        ns.Macros:RefreshActionButtons(event == "ACTIONBAR_SLOT_CHANGED")
     elseif event == "NEW_MOUNT_ADDED" or event == "COMPANION_UPDATE" or event == "MOUNT_JOURNAL_USABILITY_CHANGED" or event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then
         ns.Mounts:Refresh()
         ns.Macros:RefreshActionButtons()
